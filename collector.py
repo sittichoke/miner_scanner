@@ -37,7 +37,7 @@ class CollectorData(BaseModel):
     chain_hw: Optional[List[int]] = None            # e.g. [4756, 2218, 7553]
     chain_avg_hashrate: Optional[List[str]] = None  # e.g. ["5463.34 MH/s", "5482.70 MH/s", "5432.49 MH/s"]
     card: Optional[Dict] = None 
-
+    temp_max: Optional[int] = None
 
 class Collector:
     """
@@ -111,27 +111,6 @@ class Collector:
 
         logging.info("[Collector] stored & pushed batch (%d)", len(records))
 
-    # @staticmethod
-    # def _extract_data(ip: str, stats: dict, version: dict,pools: list[dict]) -> CollectorData:
-    #     # summary = next((s for s in stats if s.get("TYPE", "").lower() in {"summary", "stats"}), {})
-    #     if ip == '192.168.23.113':
-    #         summary = stats.get('STATS')[1]
-    #         print(f'stats: {summary}')
-    #     summary = stats.get('STATS')[1]
-    #     # pool_stat = next((s for s in stats if s.get("TYPE") == "pool"), {})
-    #     pool_stat = pools[0]
-
-    #     return CollectorData(
-    #         ip=ip,
-    #         model=version.get("model"),
-    #         hashrate_5s=_to_f(summary.get("GHS 5s")),
-    #         hashrate_avg=_to_f(summary.get("GHS av")),
-    #         temperature=_to_f(summary.get("temp2") or summary.get("temp")),
-    #         worker_name=pool_stat.get("workername"),
-    #         pool=pool_stat.get("url"),
-    #         pool_stat = pool_stat.get("status"),
-    #         # owner_name=version.get("owner"),
-    #     )
     @staticmethod
     def _extract_data(ip: str, stats: dict, version: dict, pools: list[dict]) -> CollectorData:
         # Expect cgminer/bmminer-like payloads where stats["STATS"][1] holds summary
@@ -164,6 +143,7 @@ class Collector:
                 or k.startswith("temp_in_chip_")   # e.g. temp_in_chip_1..3
                 or k.startswith("temp_out_chip_")  # e.g. temp_out_chip_1..3
                 or k.startswith("chain_rate")
+                or k.startswith("chain_acn")
             ):
                 # iv = _to_i(v)
                 # if iv is not None:
@@ -174,6 +154,7 @@ class Collector:
                         "temp_in":None,
                         "temp_out":None,
                         "hashrate":None,
+                        "chain_acn":None,
                     }
                 if k.startswith("temp2_"):
                     iv = _to_i(v)
@@ -185,6 +166,8 @@ class Collector:
                     card[k[-1]]["temp_out"] = v
                 elif k.startswith("chain_rate"):
                     card[k[-1]]["hashrate"] = _to_f(v)
+                elif k.startswith("chain_acn"):
+                    card[k[-1]]["chain_acn"] = _to_i(v) 
 
         # Chains HW errors: chain_hw1..chain_hwN → chain_hw: List[int]
         chain_hw: list[int] = []
@@ -220,22 +203,20 @@ class Collector:
 
         return CollectorData(
             ip=ip,
-            model=version.get("model"),
-            # hashrate_5s=_to_f(summary.get("GHS 5s") or summary.get("GHS_5s")),
-            hashrate_avg=_to_f(summary.get("GHS av") or summary.get("GHS_av") or summary.get("rate_30m")),
-            temperature=_to_f(primary_temp),
-            worker_name=pool_stat.get("workername"),
-            pool=pool_stat.get("url"),
-            # pool_status=pool_stat.get("status"),  # ← Uncomment if you add this field to CollectorData
-            total_rate_ideal=_to_f(summary.get("total_rateideal")),
-            miner_count=_to_i(summary.get("miner_count")),
-            frequency=_to_i(summary.get("frequency")),
-            fan_num=fan_num or None,
-            fans=fans or None,
-            # temps=temps or None,
-            card=card or None,
-            chain_hw=chain_hw or None,
-            chain_avg_hashrate=chain_avg_hashrate or None,
+            model=version.get("model") if version and version.get("model") is not None else None,
+            hashrate_avg=_to_f(summary.get("GHS av") or summary.get("GHS_av") or summary.get("rate_30m")) if summary else None,
+            temperature=_to_f(primary_temp) if primary_temp is not None else None,
+            worker_name=pool_stat.get("workername") if pool_stat and pool_stat.get("workername") is not None else None,
+            pool=pool_stat.get("url") if pool_stat and pool_stat.get("url") is not None else None,
+            miner_count=_to_i(summary.get("miner_count")) if summary and summary.get("miner_count") is not None else None,
+            frequency=_to_i(summary.get("frequency")) if summary and summary.get("frequency") is not None else None,
+            fan_num=fan_num if fan_num is not None else None,
+            fans=fans if fans else None,
+            card=card if card else None,
+            chain_hw=chain_hw if chain_hw else None,
+            chain_avg_hashrate=chain_avg_hashrate if chain_avg_hashrate else None,
+            temp_max=_to_i(summary.get("temp_max")) if summary and summary.get("temp_max") is not None else None,
+            total_rate_ideal=_to_f(summary.get("total_rateideal")) if summary and summary.get("total_rateideal") is not None else None,
         )
 
 
@@ -302,8 +283,9 @@ def _format_result(r: CollectorData, wrap=True) -> dict:
             else:
                 result["hashrate"] = None
 
-    # if r.total_rate_ideal is not None:
-    #     result["total_rate_ideal"] = f"{r.total_rate_ideal:.2f}"
+    if r.total_rate_ideal is not None:
+        val, unit = convert_from_ghs(r.total_rate_ideal, r.model)
+        result["total_rate_ideal"] = f"{val:.2f} {unit}"
 
     if r.miner_count is not None:
         result["miner_count"] = r.miner_count
@@ -327,5 +309,7 @@ def _format_result(r: CollectorData, wrap=True) -> dict:
 
     if r.chain_avg_hashrate:
         result["chain_avg_hashrate"] = r.chain_avg_hashrate  # list of strings, already formatted
+    if r.temp_max is not None:
+        result["temp_max"] = r.temp_max
 
     return {"results": [result]} if wrap else result

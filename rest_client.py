@@ -86,6 +86,7 @@ class RestClient:
 
         try:
             # payloadStr = json.dumps(body,indent=2)
+            # print(f'payloadStr: {payloadStr}')
             r = self.session.post(url, json=body, timeout=self.timeout)
             r.raise_for_status()
         except requests.HTTPError as exc:
