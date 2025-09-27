@@ -40,6 +40,9 @@ def convert_from_ghs(value_ghs: Optional[float], model: Optional[str]) -> Tuple[
     """
     Input is GH/s (what many stats fields use). Output is (value_in_preferred_unit, unit_str).
     """
+    if model_key(model) == "l7" and value_ghs >1000:
+        value_ghs = value_ghs / 1000.0  # L7 is usually in TH/s
+
     if value_ghs is None:
         return None, preferred_unit_for_model(model)
     unit = preferred_unit_for_model(model)
