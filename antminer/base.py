@@ -14,10 +14,11 @@ from antminer.utils import parse_version_number
 
 
 class Core(object):
-    def __init__(self, host, port=DEFAULT_PORT):
+    def __init__(self, host, port=DEFAULT_PORT, mac_addr=None):
         self.host = host
         self.port = int(port)
         self.conn = None
+        self.mac_addr = mac_addr 
 
     def connect(self):
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

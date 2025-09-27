@@ -4,7 +4,7 @@ from antminer.base import BaseClient
 import ipaddress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
-
+from netutils import resolve_mac
 class LocalMiners(object):
     TIMEOUT = 0.05
     MAX_PROBES = 256   # threads per discover() call
@@ -32,7 +32,13 @@ class LocalMiners(object):
     def _probe(self, ip: str) -> BaseClient | None:
         try:
             with socket.create_connection((ip, DEFAULT_PORT), self.TIMEOUT):
-                return BaseClient(ip)
+                cli = BaseClient(ip)
+                # Best-effort MAC lookup (same L2 only)
+                try:
+                    cli.mac_addr = resolve_mac(ip)  # dynamic attribute; or extend BaseClient
+                except Exception:
+                    cli.mac_addr = None
+                return cli
         except OSError:
             return None
         

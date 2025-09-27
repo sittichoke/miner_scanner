@@ -8,6 +8,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import json
+from datetime import datetime
 
 
 class RestClient:
@@ -76,7 +77,8 @@ class RestClient:
             batched_payload["results"] = chunk
             self._post_once(url, batched_payload)
             # print status until done
-            print(f"[RestClient] POST {url} - sent {min(i + self.batch_size, len(results))}/{len(results)} items")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] [RestClient] POST {url} - sent {min(i + self.batch_size, len(results))}/{len(results)} items")
 
     # ------------------------------------------------------------------ #
     # Internal helper
