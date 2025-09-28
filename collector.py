@@ -74,9 +74,9 @@ class Collector:
     def collect_all(self, miners: list[BaseClient]) -> None:
         records = []
         for miner in miners:
-            if miner.host == '192.168.23.52':
-                print(f'Collecting data from miner: {miner.host}')
-            print(f'Collecting data from miner: {miner.host}')
+            # if miner.host == '192.168.23.52':
+            #     print(f'Collecting data from miner: {miner.host}')
+            # print(f'Collecting data from miner: {miner.host}')
             try:
                 record = self._extract_data(
                     miner.host, miner.stats(), miner.version(),miner.pools()
@@ -107,6 +107,7 @@ class Collector:
 
         if self.rest:
             payload = {"results": [_format_result(r, wrap=False) for r in records]}
+            self.rest.post_device_online(self.rest_path, payload)
             self.rest.post(self.rest_path, payload)
 
         logging.info("[Collector] stored & pushed batch (%d)", len(records))

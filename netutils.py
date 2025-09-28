@@ -1,6 +1,7 @@
 # netutils.py
 import platform, re, subprocess
 from typing import Optional
+from getmac import get_mac_address
 
 def mac_via_arp_table(ip: str) -> Optional[str]:
     try:
@@ -24,7 +25,13 @@ def mac_via_scapy(ip: str, timeout: float = 1.0) -> Optional[str]:
     except Exception:
         pass
     return None
-
+def mac_via_getmac(ip: str) -> Optional[str]:
+    try:
+        mac = get_mac_address(ip=ip)
+        return mac.lower() if mac else None
+    except Exception:
+        return None
+    
 def resolve_mac(ip: str) -> Optional[str]:
     # Prefer active ARP probe; fallback to ARP table
-    return mac_via_scapy(ip) or mac_via_arp_table(ip)
+    return mac_via_getmac(ip) or mac_via_scapy(ip) or mac_via_arp_table(ip)
