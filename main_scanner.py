@@ -41,7 +41,7 @@ def main() -> None:
         rest = RestClient(
             base_url=api_url,
             api_key=os.getenv("API_KEY"),
-            timeout=int(os.getenv("API_TIMEOUT", "5")),
+            timeout=int(os.getenv("API_TIMEOUT", "10")),
         )
 
     collector = Collector(db=db, rest_client=rest)
