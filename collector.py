@@ -38,6 +38,7 @@ class CollectorData(BaseModel):
     chain_avg_hashrate: Optional[List[str]] = None  # e.g. ["5463.34 MH/s", "5482.70 MH/s", "5432.49 MH/s"]
     card: Optional[Dict] = None 
     temp_max: Optional[int] = None
+    mac_address: Optional[str] = None
 
 class Collector:
     """
@@ -88,6 +89,28 @@ class Collector:
             records.append(record)
     
         self._persist_all(records)
+    def collect_all_online(self, miners: list[BaseClient]) -> None:
+        records = []
+
+        for miner in miners:
+            # if miner.host == '192.168.23.52':
+            #     print(f'Collecting data from miner: {miner.host}')
+            # print(f'Collecting data from miner: {miner.host}')
+            miner.connect()
+            minerCon = miner.conn
+            try:
+                if minerCon is not None:
+                    record = CollectorData(
+                        ip=miner.host, is_online=True,mac_address=miner.mac_addr
+                    )
+                    records.append(record)
+            except Exception as exc:
+                # record = CollectorData(ip=miner.host, is_online=False)
+                logging.warning("[Collector] %s marked offline – %s", miner.host, exc)
+      
+            # records.append(record)
+        print(f"[Scanner] → {len(miners)} miners(s) online")
+        self._persist_all(records)
 
     # ------------------------------------------------------------------ #
     # Internal helpers
@@ -107,7 +130,7 @@ class Collector:
 
         if self.rest:
             payload = {"results": [_format_result(r, wrap=False) for r in records]}
-            self.rest.post_device_online(self.rest_path, payload)
+            # self.rest.post_device_online(self.rest_path, payload)
             self.rest.post(self.rest_path, payload)
 
         logging.info("[Collector] stored & pushed batch (%d)", len(records))
@@ -237,21 +260,17 @@ def _to_i(v):
         return None
 
 def _format_result(r: CollectorData, wrap=True) -> dict:
-    result = {
-        "ip": r.ip,
-        "brand": r.model or "AntminerHttpCgi",  # or dynamically detect brand
-        "online": r.is_online,
-        # "hashrate": (
-        #     f"{r.hashrate_avg:.2f} TH/s" if r.hashrate_avg and r.hashrate_avg > 1000
-        #     else f"{r.hashrate_avg:.2f} MH/s" if r.hashrate_avg
-        #     else None
-        # ),
-        # "temperature": f"{int(r.temperature)} °C" if r.temperature is not None else None,
-        # "card": r.card if r.card else None,
-        "worker_name": r.worker_name,
-        "pool": r.pool,
-    }
-
+    result = {}
+    if r.ip is not None:
+        result["ip"] = r.ip
+    if r.model is not None:
+        result["brand"] = r.model
+    if r.is_online is not None:
+        result["online"] = r.is_online
+    if r.worker_name is not None:
+        result["worker_name"] = r.worker_name
+    if r.pool is not None:
+        result["pool"] = r.pool
     # ─── Extra fields from extended CollectorData ───────────────────
     if r.card is not None:
         # result["card"] = r.card

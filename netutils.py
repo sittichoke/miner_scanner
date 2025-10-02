@@ -34,4 +34,5 @@ def mac_via_getmac(ip: str) -> Optional[str]:
     
 def resolve_mac(ip: str) -> Optional[str]:
     # Prefer active ARP probe; fallback to ARP table
-    return mac_via_getmac(ip) or mac_via_scapy(ip) or mac_via_arp_table(ip)
+    # return mac_via_getmac(ip) or mac_via_scapy(ip) or mac_via_arp_table(ip)
+    return mac_via_getmac(ip)

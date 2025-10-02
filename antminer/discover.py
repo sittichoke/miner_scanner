@@ -36,6 +36,7 @@ class LocalMiners(object):
                 # Best-effort MAC lookup (same L2 only)
                 try:
                     cli.mac_addr = resolve_mac(ip)  # dynamic attribute; or extend BaseClient
+                    print(f'scanning: {ip} - found - MAC: {cli.mac_addr}\n')
                 except Exception:
                     cli.mac_addr = None
                 return cli
